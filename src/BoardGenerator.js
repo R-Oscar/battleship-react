@@ -1,7 +1,3 @@
-Array.prototype.choice = function() {
-  return this[Math.floor(Math.random() * this.length)];
-};
-
 export default class BoardGenerator {
   constructor(n = 10) {
     this.size = n;

@@ -1,155 +1,219 @@
 import { render } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+import React, { Component } from 'react';
 
 import BoardGenerator from './BoardGenerator';
 import Board from './Board';
+import Modal from './Modal';
 
-export default function App() {
-  const [playersTurn, setPlayersTurn] = useState(true);
-  const [AIBoard, setAIBoard] = useState({ board: [], fleet: [] });
-  const [playerBoard, setPlayerBoard] = useState({ board: [], fleet: [] });
+import shipController from './shipController';
+import randomItem from 'random-item';
 
-  const togglePlayersTurn = () => {
-    setPlayersTurn(!playersTurn);
+import { SHIP_CELL, HIT_CELL, MISS_CELL } from './constants';
+
+class App extends Component {
+  state = {
+    cpuBoard: {
+      board: [],
+      fleet: []
+    },
+    playerBoard: {
+      board: [],
+      fleet: []
+    },
+    cpuRecommendationPool: [],
+    lastCpuHit: [],
+    winner: '',
+    modalVisible: false
   };
 
-  const revealHandler = e => {
+  componentDidMount() {
+    this.newGame();
+  }
+
+  getRandomPoint(board, recommendationPool = []) {
+    let point = null;
+
+    if (recommendationPool.length > 0) {
+      point = randomItem(recommendationPool);
+    } else {
+      point = [Math.floor(Math.random() * board.length), Math.floor(Math.random() * board.length)];
+    }
+
+    const [row, col] = point;
+
+    console.log('generating random point', [row, col]);
+
+    if (board[row][col].value === MISS_CELL || board[row][col].value === HIT_CELL) {
+      return this.getRandomPoint(
+        board,
+        recommendationPool.length > 0 ? recommendationPool.filter(p => point !== p) : []
+      );
+    }
+
+    return [row, col];
+  }
+
+  turn() {
+    const { playerBoard, cpuRecommendationPool, lastCpuHit } = this.state;
+    const { board } = playerBoard;
+
+    const [row, col] = this.getRandomPoint(board, cpuRecommendationPool);
+
+    console.info(
+      `[CPU] Firing at point ${row}:${col}. ${(board[row][col].value === 1 && 'Hit!') || 'Miss.'}`
+    );
+
+    const stateCopy = board.slice();
+
+    stateCopy[row][col].value = stateCopy[row][col].value === SHIP_CELL ? HIT_CELL : MISS_CELL;
+
+    if (stateCopy[row][col].value === HIT_CELL) {
+      let newFleet = null;
+      const ship = shipController.getShipByPoint(playerBoard, [+row, +col]);
+      if (ship.isDestroyed()) {
+        ship.reveal();
+        newFleet = playerBoard.fleet.filter(s => s !== ship.currentShip);
+        if (newFleet.length === 0) {
+          this.setState(() => ({ winner: 'Компьютер', modalVisible: true }));
+        }
+        this.setState(() => ({
+          cpuRecommendationPool: []
+        }));
+      } else {
+        if (cpuRecommendationPool.length === 0) {
+          const poolBuffer = [];
+
+          if (row - 1 !== -1) poolBuffer.push([row - 1, col]);
+          if (col - 1 !== -1) poolBuffer.push([row, col - 1]);
+          if (row + 1 !== stateCopy.length) poolBuffer.push([row + 1, col]);
+          if (col + 1 !== stateCopy.length) poolBuffer.push([row, col + 1]);
+
+          this.setState(() => ({
+            cpuRecommendationPool: poolBuffer,
+            lastCpuHit: [row, col]
+          }));
+        } else {
+          if (lastCpuHit[0] === row) {
+            this.setState(prevState => ({
+              cpuRecommendationPool: [
+                ...prevState.cpuRecommendationPool.filter(point => point[0] === row),
+                [row, col + 1],
+                [row, col - 1]
+              ]
+            }));
+          } else if (lastCpuHit[1] === col) {
+            this.setState(prevState => ({
+              cpuRecommendationPool: [
+                ...prevState.cpuRecommendationPool.filter(point => point[1] === col),
+                [row + 1, col],
+                [row - 1, col]
+              ]
+            }));
+          }
+        }
+      }
+
+      this.setState(
+        prevState => ({
+          playerBoard: { board: stateCopy, fleet: newFleet || prevState.playerBoard.fleet }
+        }),
+        () => {
+          if (this.state.playerBoard.fleet.length !== 0) this.turn();
+        }
+      );
+    } else {
+      this.setState(prevState => ({
+        playerBoard: { board: stateCopy, fleet: prevState.playerBoard.fleet }
+      }));
+    }
+  }
+
+  revealHandler = e => {
     const [row, col] = e.target.id ? e.target.id.split('-') : e.target.parentElement.id.split('-');
 
-    const { board } = AIBoard;
+    const { cpuBoard } = this.state;
+    const { board } = cpuBoard;
 
-    if (board[row][col].value === 2 || board[row][col].value === 3) return;
+    if (board[row][col].value === HIT_CELL || board[row][col].value === MISS_CELL) return;
 
     const stateCopy = board.slice();
 
     stateCopy[row][col].hidden = false;
     stateCopy[row][col].value = stateCopy[row][col].value === 1 ? 2 : 3;
 
-    if (stateCopy[row][col].value === 2) {
-      const cellsToOpen = checkHalo(stateCopy, [+row, +col]);
-      if (cellsToOpen) {
-        console.log('we shold open it');
-        revealHalo(stateCopy, cellsToOpen);
+    if (stateCopy[row][col].value === HIT_CELL) {
+      let newFleet = null;
+      const ship = shipController.getShipByPoint(cpuBoard, [+row, +col]);
+      if (ship.isDestroyed()) {
+        ship.reveal();
+        newFleet = cpuBoard.fleet.filter(s => s !== ship.currentShip);
+        if (newFleet.length === 0) {
+          this.setState(() => ({
+            winner: 'Игрок',
+            modalVisible: true
+          }));
+        }
       }
+      this.setState(prevState => ({
+        cpuBoard: {
+          board: stateCopy,
+          fleet: newFleet || prevState.cpuBoard.fleet
+        },
+        winner: newFleet && newFleet.length === 0 && 'Игрок'
+      }));
+    } else {
+      this.setState(
+        prevState => ({
+          cpuBoard: {
+            board: stateCopy,
+            fleet: prevState.cpuBoard.fleet
+          }
+        }),
+        () => this.turn()
+      );
     }
-
-    setAIBoard({ board: stateCopy, fleet: AIBoard.fleet });
-
-    togglePlayersTurn();
-
-    AITurn();
   };
 
-  const AITurn = recommendationPool => {
-    let point = null;
-    const { board } = playerBoard;
-    if (!recommendationPool || recommendationPool.length === 0) {
-      point = [Math.floor(Math.random() * board.length), Math.floor(Math.random() * board.length)];
-    }
+  generateBoard(boardName, hidden) {
+    let [board, fleet] = new BoardGenerator().generate();
 
-    const [row, col] = point;
-
-    const stateCopy = board.slice();
-    stateCopy[row][col].value = stateCopy[row][col].value === 1 ? 2 : 3;
-    setPlayerBoard({ board: stateCopy, fleet: playerBoard.fleet });
-  };
-
-  const checkHalo = (board, point) => {
-    console.log('checkHalo!');
-    const res = [];
-    const [row, col] = point;
-
-    const halo = [
-      {
-        value: board[row - 1][col].value,
-        row: row - 1,
-        col
-      },
-      {
-        value: board[row + 1][col].value,
-        row: row + 1,
-        col
-      },
-      {
-        value: board[row][col - 1].value,
-        row,
-        col: col - 1
-      },
-      {
-        value: board[row][col + 1].value,
-        row,
-        col: col + 1
+    this.setState({
+      [boardName]: {
+        board: board.map((row, rowIndex) =>
+          row.map((cell, cellIndex) => ({
+            hidden,
+            value: cell,
+            id: `${rowIndex}-${cellIndex}`
+          }))
+        ),
+        fleet
       }
-    ];
-
-    for (const p of halo) {
-      if (p.value === 2) {
-        return [res, ...checkHalo(board, [p.row, p.col])];
-      } else if (p.value === 1) {
-        return false;
-      } else if (p.value === 0) {
-        res.push([p.row, p.col]);
-      }
-    }
-
-    return res;
-  };
-
-  const revealHalo = (board, points) => {
-    points.forEach(([row, col]) => {
-      board[row][col].value = 3;
-      board[row][col].hidden = false;
     });
-  };
+  }
 
-  useEffect(
-    () => {
-      if (AIBoard.board.length === 0) {
-        const [board, fleet] = new BoardGenerator().generate();
+  newGame() {
+    this.generateBoard('cpuBoard', true);
+    this.generateBoard('playerBoard', false);
+  }
 
-        setAIBoard({
-          board: board.map((row, rowIndex) =>
-            row.map((cell, cellIndex) => {
-              return {
-                hidden: true,
-                value: cell,
-                id: `${rowIndex}-${cellIndex}`
-              };
-            })
-          ),
-          fleet
-        });
-      }
-    },
-    [AIBoard]
-  );
-
-  useEffect(
-    () => {
-      if (playerBoard.board.length === 0) {
-        const [board, fleet] = new BoardGenerator().generate();
-
-        setPlayerBoard({
-          board: board.map((row, rowIndex) =>
-            row.map((cell, cellIndex) => {
-              return { hidden: false, value: cell, id: `${rowIndex}-${cellIndex}` };
-            })
-          ),
-          fleet
-        });
-      }
-    },
-    [playerBoard]
-  );
-
-  console.log(AIBoard);
-
-  return (
-    <div>
-      <Board data={AIBoard.board} reveal={revealHandler} />
-      <Board data={playerBoard.board} />
-    </div>
-  );
+  render() {
+    const { cpuBoard, playerBoard, modalVisible, winner } = this.state;
+    return (
+      <>
+        <Modal
+          visible={modalVisible}
+          winner={winner}
+          closeHandler={() => this.setState(() => ({ modalVisible: false }))}
+          retryHandler={() => {
+            this.setState(() => ({ modalVisible: false }));
+            this.newGame();
+          }}
+        />
+        <Board data={cpuBoard.board} reveal={this.revealHandler} />
+        <Board data={playerBoard.board} />
+      </>
+    );
+  }
 }
 
 render(<App />, document.querySelector('#root'));
