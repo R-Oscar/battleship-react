@@ -12,6 +12,8 @@ export default {
       }
     })[0];
 
+    if (!this.currentShip) return false;
+
     return this;
   },
 
@@ -24,10 +26,12 @@ export default {
   },
 
   reveal() {
-    const { board } = this.board;
+    const board = this.board.board.slice();
     for (const [row, col] of this.currentShip.halo) {
       board[row][col].value = 3;
       board[row][col].hidden = false;
     }
+
+    return board;
   }
 };

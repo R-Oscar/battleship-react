@@ -1,177 +1,84 @@
 import { render } from 'react-dom';
 import React, { Component } from 'react';
 
-import BoardGenerator from './BoardGenerator';
 import Board from './Board';
 import Modal from './Modal';
 
-import shipController from './shipController';
-import randomItem from 'random-item';
+import BoardGenerator from './utils/BoardGenerator';
+import getRandomPoint from './utils/getRandomPoint';
 
-import { SHIP_CELL, HIT_CELL, MISS_CELL } from './constants';
+import getUpdatedBoard, {
+  shipHit,
+  isWinner,
+  getNewRecommendationPool,
+  getCpuHitPoint
+} from './utils/other';
+
+import { HIT_CELL, MISS_CELL } from './utils/constants';
+
+const initialState = {
+  cpuBoard: {
+    board: [],
+    fleet: []
+  },
+  playerBoard: {
+    board: [],
+    fleet: []
+  },
+  cpuRecommendationPool: [],
+  lastCpuHit: [],
+  winner: '',
+  modalVisible: false
+};
 
 class App extends Component {
-  state = {
-    cpuBoard: {
-      board: [],
-      fleet: []
-    },
-    playerBoard: {
-      board: [],
-      fleet: []
-    },
-    cpuRecommendationPool: [],
-    lastCpuHit: [],
-    winner: '',
-    modalVisible: false
-  };
+  state = initialState;
 
   componentDidMount() {
-    this.newGame();
+    this.startGame();
   }
 
-  getRandomPoint(board, recommendationPool = []) {
-    let point = null;
-
-    if (recommendationPool.length > 0) {
-      point = randomItem(recommendationPool);
-    } else {
-      point = [Math.floor(Math.random() * board.length), Math.floor(Math.random() * board.length)];
-    }
-
-    const [row, col] = point;
-
-    console.log('generating random point', [row, col]);
-
-    if (board[row][col].value === MISS_CELL || board[row][col].value === HIT_CELL) {
-      return this.getRandomPoint(
-        board,
-        recommendationPool.length > 0 ? recommendationPool.filter(p => point !== p) : []
-      );
-    }
-
-    return [row, col];
-  }
-
-  turn() {
+  cpuTurn() {
     const { playerBoard, cpuRecommendationPool, lastCpuHit } = this.state;
     const { board } = playerBoard;
+    const [row, col] = getRandomPoint(board, cpuRecommendationPool);
+    const isHit = shipHit(playerBoard, [row, col]);
 
-    const [row, col] = this.getRandomPoint(board, cpuRecommendationPool);
+    const updatedBoard = getUpdatedBoard(playerBoard, [row, col]);
 
-    console.info(
-      `[CPU] Firing at point ${row}:${col}. ${(board[row][col].value === 1 && 'Hit!') || 'Miss.'}`
-    );
+    const updatedState = {
+      playerBoard: {
+        ...updatedBoard
+      },
+      ...isWinner(updatedBoard, 'Компьютер'),
+      cpuRecommendationPool: getNewRecommendationPool(
+        playerBoard,
+        [row, col],
+        cpuRecommendationPool,
+        lastCpuHit
+      ),
+      lastCpuHit: getCpuHitPoint(playerBoard, [row, col], lastCpuHit)
+    };
 
-    const stateCopy = board.slice();
-
-    stateCopy[row][col].value = stateCopy[row][col].value === SHIP_CELL ? HIT_CELL : MISS_CELL;
-
-    if (stateCopy[row][col].value === HIT_CELL) {
-      let newFleet = null;
-      const ship = shipController.getShipByPoint(playerBoard, [+row, +col]);
-      if (ship.isDestroyed()) {
-        ship.reveal();
-        newFleet = playerBoard.fleet.filter(s => s !== ship.currentShip);
-        if (newFleet.length === 0) {
-          this.setState(() => ({ winner: 'Компьютер', modalVisible: true }));
-        }
-        this.setState(() => ({
-          cpuRecommendationPool: []
-        }));
-      } else {
-        if (cpuRecommendationPool.length === 0) {
-          const poolBuffer = [];
-
-          if (row - 1 !== -1) poolBuffer.push([row - 1, col]);
-          if (col - 1 !== -1) poolBuffer.push([row, col - 1]);
-          if (row + 1 !== stateCopy.length) poolBuffer.push([row + 1, col]);
-          if (col + 1 !== stateCopy.length) poolBuffer.push([row, col + 1]);
-
-          this.setState(() => ({
-            cpuRecommendationPool: poolBuffer,
-            lastCpuHit: [row, col]
-          }));
-        } else {
-          if (lastCpuHit[0] === row) {
-            this.setState(prevState => ({
-              cpuRecommendationPool: [
-                ...prevState.cpuRecommendationPool.filter(point => point[0] === row),
-                [row, col + 1],
-                [row, col - 1]
-              ]
-            }));
-          } else if (lastCpuHit[1] === col) {
-            this.setState(prevState => ({
-              cpuRecommendationPool: [
-                ...prevState.cpuRecommendationPool.filter(point => point[1] === col),
-                [row + 1, col],
-                [row - 1, col]
-              ]
-            }));
-          }
-        }
-      }
-
-      this.setState(
-        prevState => ({
-          playerBoard: { board: stateCopy, fleet: newFleet || prevState.playerBoard.fleet }
-        }),
-        () => {
-          if (this.state.playerBoard.fleet.length !== 0) this.turn();
-        }
-      );
-    } else {
-      this.setState(prevState => ({
-        playerBoard: { board: stateCopy, fleet: prevState.playerBoard.fleet }
-      }));
-    }
+    this.setState(updatedState, () => isHit && this.cpuTurn());
   }
 
   revealHandler = e => {
     const [row, col] = e.target.id ? e.target.id.split('-') : e.target.parentElement.id.split('-');
-
     const { cpuBoard } = this.state;
-    const { board } = cpuBoard;
 
-    if (board[row][col].value === HIT_CELL || board[row][col].value === MISS_CELL) return;
+    const cellValue = cpuBoard.board[row][col].value;
 
-    const stateCopy = board.slice();
+    const isHit = shipHit(cpuBoard, [+row, +col]);
+    if (cellValue === HIT_CELL || cellValue === MISS_CELL) return;
 
-    stateCopy[row][col].hidden = false;
-    stateCopy[row][col].value = stateCopy[row][col].value === 1 ? 2 : 3;
+    const updatedBoard = getUpdatedBoard(cpuBoard, [+row, +col]);
+    const updatedState = {
+      cpuBoard: { ...updatedBoard },
+      ...isWinner(updatedBoard, 'Игрок')
+    };
 
-    if (stateCopy[row][col].value === HIT_CELL) {
-      let newFleet = null;
-      const ship = shipController.getShipByPoint(cpuBoard, [+row, +col]);
-      if (ship.isDestroyed()) {
-        ship.reveal();
-        newFleet = cpuBoard.fleet.filter(s => s !== ship.currentShip);
-        if (newFleet.length === 0) {
-          this.setState(() => ({
-            winner: 'Игрок',
-            modalVisible: true
-          }));
-        }
-      }
-      this.setState(prevState => ({
-        cpuBoard: {
-          board: stateCopy,
-          fleet: newFleet || prevState.cpuBoard.fleet
-        },
-        winner: newFleet && newFleet.length === 0 && 'Игрок'
-      }));
-    } else {
-      this.setState(
-        prevState => ({
-          cpuBoard: {
-            board: stateCopy,
-            fleet: prevState.cpuBoard.fleet
-          }
-        }),
-        () => this.turn()
-      );
-    }
+    this.setState(updatedState, () => !isHit && this.cpuTurn());
   };
 
   generateBoard(boardName, hidden) {
@@ -191,7 +98,7 @@ class App extends Component {
     });
   }
 
-  newGame() {
+  startGame() {
     this.generateBoard('cpuBoard', true);
     this.generateBoard('playerBoard', false);
   }
