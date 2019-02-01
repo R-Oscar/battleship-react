@@ -1,6 +1,13 @@
 import randomItem from 'random-item';
 import { MISS_CELL, HIT_CELL } from './constants';
 
+/**
+ * Возвращает случайную нетронутую точку на поле board
+ * с учетом рекомендательного пула recommendationPool
+ * @param {Object} board Поле боя
+ * @param {Array} recommendationPool Рекомендательный пул. Пустой массив по умолчанию
+ * @returns {Array} Случайная точка
+ */
 export default function getRandomPoint(board, recommendationPool = []) {
   let point = null;
 

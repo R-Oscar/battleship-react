@@ -31,7 +31,7 @@ const initialState = {
   modalVisible: false
 };
 
-class App extends Component {
+class Battleship extends Component {
   state = initialState;
 
   componentDidMount() {
@@ -113,7 +113,7 @@ class App extends Component {
           closeHandler={() => this.setState(() => ({ modalVisible: false }))}
           retryHandler={() => {
             this.setState(() => ({ modalVisible: false }));
-            this.newGame();
+            this.startGame();
           }}
         />
         <Board data={cpuBoard.board} reveal={this.revealHandler} />
@@ -123,6 +123,6 @@ class App extends Component {
   }
 }
 
-render(<App />, document.querySelector('#root'));
+render(<Battleship />, document.querySelector('#root'));
 
 if (module.hot) module.hot.accept();
