@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { SHIP_CELL, HIT_CELL, MISS_CELL } from '../utils/constants';
+import { SHIP_CELL, HIT_CELL, MISS_CELL } from '../../utils/constants';
 import './style.css';
 
 export default function Cell({ id, value, hidden, reveal }) {

@@ -1,4 +1,9 @@
+/** Класс для генерирования поля боя */
 export default class BoardGenerator {
+  /**
+   * Создает доску размером n x n
+   * @param {Number} n
+   */
   constructor(n = 10) {
     this.size = n;
     this.board = Array(n)
@@ -9,6 +14,11 @@ export default class BoardGenerator {
   }
 
   generate() {
+    /**
+     * Метод генерирования
+     * @returns {Object} Объект сгенерированной доски, состоящей из
+     * массива координат всего игрового поля и массива с флотом
+     */
     const shipsCopy = this.ships.slice();
 
     while (shipsCopy.length > 0) {
@@ -26,6 +36,12 @@ export default class BoardGenerator {
   }
 
   place(ship, point) {
+    /**
+     * Размещает корабль ship на точке point, где point - ареал корабля
+     * в левой верхней точке. Выбрасывает ошибку, если размещение
+     * невозможно (по причине коллизии с другим кораблем или
+     * выхода за границы игрового поля)
+     */
     const boardCopy = this.board.map(row => row.slice());
 
     point = point || [
@@ -59,7 +75,7 @@ export default class BoardGenerator {
     for (let i = row; i < row + ship.height; i++) {
       for (let j = col; j < col + ship.width; j++) {
         if (boardCopy[i][j] === 1) throw new Error('collision!');
-        else boardCopy[i][j] = ship.get(i - row)[j - col];
+        else boardCopy[i][j] = ship.get()[i - row][j - col];
       }
     }
 
@@ -69,57 +85,80 @@ export default class BoardGenerator {
   }
 }
 
+/** Класс, соответствующий сущности корабля в модели данных */
 class Ship {
-  constructor(n, horizontal = Math.random() >= 0.5) {
-    this._ship = Array(horizontal ? 3 : n + 2)
+  /**
+   * Создает корабль длиной n и горизонтальной ориентацией isHorizontal
+   * @param {Number} n
+   * @param {Boolean} isHorizontal
+   */
+  constructor(n, isHorizontal = Math.random() >= 0.5) {
+    this._ship = Array(isHorizontal ? 3 : n + 2)
       .fill()
-      .map(el => Array(horizontal ? n + 2 : 3).fill(2));
+      .map(el => Array(isHorizontal ? n + 2 : 3).fill(2));
 
-    if (horizontal) {
+    if (isHorizontal) {
       for (let i = 1; i <= n; i++) {
-        this.ship[1][i] = 1;
+        this._ship[1][i] = 1;
       }
     } else {
       for (let i = 1; i <= n; i++) {
-        this.ship[i][1] = 1;
+        this._ship[i][1] = 1;
       }
     }
   }
 
-  get ship() {
+  /**
+   * Возвращает корабль
+   * @returns {Array} матрицу соответствующую положению корабля и его ареала на игровом поле
+   */
+  get() {
     return this._ship;
   }
 
-  set ship(ship) {
-    this._ship = ship;
-  }
-
-  get length() {
-    return this.ship.length;
-  }
-
+  /**
+   * Возвращает ширину корабля
+   * @returns {Number}
+   */
   get width() {
-    return this.ship[0].length;
+    return this._ship[0].length;
   }
 
+  /**
+   * Возвращает высоту корабля
+   * @returns {Number}
+   */
   get height() {
-    return this.length;
+    return this._ship.length;
   }
 
-  get(n) {
-    return this.ship[n];
-  }
-
+  /**
+   * Обрезает первый столбец корабля (его ареала), если first = true
+   * иначе обрезает последний столбец
+   * @param {Boolean} first
+   */
   trimCol(first = true) {
-    this._ship = this.ship.map(row =>
+    this._ship = this._ship.map(row =>
       row.filter((cell, index) => index !== (first ? 0 : row.length - 1))
     );
   }
 
+  /**
+   * Обрезает первую строку корабля (его ареала), если first = true
+   * иначе обрезает последнюю строку
+   * @param {Boolean} first
+   */
   trimRow(first = true) {
-    this._ship = this.ship.filter((row, index) => index !== (first ? 0 : this.ship.length - 1));
+    this._ship = this._ship.filter((row, index) => index !== (first ? 0 : this._ship.length - 1));
   }
 
+  /**
+   * Конвертирует корабль в объект, содержащий координаты непосредственно
+   * самого корабля на игровом поле и его ареала с учетом клетки cell,
+   * куда он поставлен
+   * @param {Array} cell
+   * @returns {Object} Объект со свойствами coords и halo
+   */
   toObject([row, col]) {
     const coords = [];
     const halo = [];

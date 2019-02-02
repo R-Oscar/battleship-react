@@ -1,3 +1,5 @@
+import randomItem from 'random-item';
+
 import { SHIP_CELL, HIT_CELL, MISS_CELL } from './constants';
 import shipController from './shipController';
 
@@ -7,7 +9,7 @@ import shipController from './shipController';
  * @param {Array} cell
  * @returns {Object} Новый объект доски
  */
-export default function getUpdatedBoard(boardObject, [row, col]) {
+export function getUpdatedBoard(boardObject, [row, col]) {
   const { board, fleet } = boardObject;
   let newFleet = fleet.slice(),
     newBoard = board.slice();
@@ -24,8 +26,6 @@ export default function getUpdatedBoard(boardObject, [row, col]) {
       return { board: newBoard, fleet: newFleet };
     }
   }
-
-  newBoard = board.slice();
 
   return { board: newBoard, fleet: newFleet };
 }
@@ -157,4 +157,32 @@ export function pointsHorizontal(cellA, cellB) {
  */
 export function getCellValueAfterHit(cell) {
   return cell.value === SHIP_CELL ? HIT_CELL : MISS_CELL;
+}
+
+/**
+ * Возвращает случайную нетронутую точку на поле board
+ * с учетом рекомендательного пула recommendationPool
+ * @param {Object} board Поле боя
+ * @param {Array} recommendationPool Рекомендательный пул. Пустой массив по умолчанию
+ * @returns {Array} Случайная точка
+ */
+export function getRandomPoint(board, recommendationPool = []) {
+  let point = null;
+
+  if (recommendationPool.length > 0) {
+    point = randomItem(recommendationPool);
+  } else {
+    point = [Math.floor(Math.random() * board.length), Math.floor(Math.random() * board.length)];
+  }
+
+  const [row, col] = point;
+
+  if (board[row][col].value === MISS_CELL || board[row][col].value === HIT_CELL) {
+    return getRandomPoint(
+      board,
+      recommendationPool.length > 0 ? recommendationPool.filter(p => point !== p) : []
+    );
+  }
+
+  return [row, col];
 }

@@ -1,13 +1,14 @@
 import { render } from 'react-dom';
 import React, { Component } from 'react';
 
-import Board from './Board';
-import Modal from './Modal';
+import Board from './components/Board';
+import Modal from './components/Modal';
 
 import BoardGenerator from './utils/BoardGenerator';
-import getRandomPoint from './utils/getRandomPoint';
 
-import getUpdatedBoard, {
+import {
+  getUpdatedBoard,
+  getRandomPoint,
   shipHit,
   isWinner,
   getNewRecommendationPool,
@@ -64,13 +65,13 @@ class Battleship extends Component {
   }
 
   revealHandler = e => {
+    const { cpuBoard, winner } = this.state;
     const [row, col] = e.target.id ? e.target.id.split('-') : e.target.parentElement.id.split('-');
-    const { cpuBoard } = this.state;
-
     const cellValue = cpuBoard.board[row][col].value;
 
+    if (cellValue === HIT_CELL || cellValue === MISS_CELL || winner.length !== 0) return;
+
     const isHit = shipHit(cpuBoard, [+row, +col]);
-    if (cellValue === HIT_CELL || cellValue === MISS_CELL) return;
 
     const updatedBoard = getUpdatedBoard(cpuBoard, [+row, +col]);
     const updatedState = {
@@ -112,7 +113,7 @@ class Battleship extends Component {
           winner={winner}
           closeHandler={() => this.setState(() => ({ modalVisible: false }))}
           retryHandler={() => {
-            this.setState(() => ({ modalVisible: false }));
+            this.setState(() => ({ modalVisible: false, winner: '' }));
             this.startGame();
           }}
         />
