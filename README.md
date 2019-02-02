@@ -2,6 +2,8 @@
 
 Battleship game made with React
 
+Demo: https://battleship-express.herokuapp.com/
+
 To install:
 
 ```bash
