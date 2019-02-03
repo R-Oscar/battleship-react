@@ -96,7 +96,7 @@ export function getCpuHitPoint({ board }, [row, col], lastCpuHit) {
  * @param {Array} cell
  * @returns {Boolean} Есть ли попадание
  */
-export function shipHit({ board }, [row, col]) {
+export function isShipHit({ board }, [row, col]) {
   return board[row][col].value === SHIP_CELL;
 }
 

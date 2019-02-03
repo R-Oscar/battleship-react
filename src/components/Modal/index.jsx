@@ -1,4 +1,6 @@
 import React from 'react';
+
+import PropTypes from 'prop-types';
 import './style.css';
 
 export default function Modal({ visible, winner, retryHandler, closeHandler }) {
@@ -22,3 +24,10 @@ export default function Modal({ visible, winner, retryHandler, closeHandler }) {
     </>
   );
 }
+
+Modal.propTypes = {
+  visible: PropTypes.bool,
+  winner: PropTypes.string,
+  retryHandler: PropTypes.func,
+  closeHandler: PropTypes.func
+};

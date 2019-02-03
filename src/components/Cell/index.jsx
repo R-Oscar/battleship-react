@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 import { SHIP_CELL, HIT_CELL, MISS_CELL } from '../../utils/constants';
 import './style.css';
@@ -22,3 +23,10 @@ export default function Cell({ id, value, hidden, reveal }) {
     </div>
   );
 }
+
+Cell.propTypes = {
+  id: PropTypes.string,
+  value: PropTypes.number,
+  hidden: PropTypes.bool,
+  reveal: PropTypes.func
+};

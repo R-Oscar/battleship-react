@@ -9,7 +9,7 @@ import BoardGenerator from './utils/BoardGenerator';
 import {
   getUpdatedBoard,
   getRandomPoint,
-  shipHit,
+  isShipHit,
   isWinner,
   getNewRecommendationPool,
   getCpuHitPoint
@@ -43,7 +43,7 @@ class Battleship extends Component {
     const { playerBoard, cpuRecommendationPool, lastCpuHit } = this.state;
     const { board } = playerBoard;
     const [row, col] = getRandomPoint(board, cpuRecommendationPool);
-    const isHit = shipHit(playerBoard, [row, col]);
+    const isHit = isShipHit(playerBoard, [row, col]);
 
     const updatedBoard = getUpdatedBoard(playerBoard, [row, col]);
 
@@ -71,7 +71,7 @@ class Battleship extends Component {
 
     if (cellValue === HIT_CELL || cellValue === MISS_CELL || winner.length !== 0) return;
 
-    const isHit = shipHit(cpuBoard, [+row, +col]);
+    const isHit = isShipHit(cpuBoard, [+row, +col]);
 
     const updatedBoard = getUpdatedBoard(cpuBoard, [+row, +col]);
     const updatedState = {
